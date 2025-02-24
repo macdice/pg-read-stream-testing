@@ -5,9 +5,6 @@ import sys
 BLCKSZ                = 8192
 COLUMNS, LINES        = shutil.get_terminal_size()
 
-FORMAT_FADVISE        = "{syscall:<6} {blocks::>2} {first:>3}..{last:<3} {time} {connection_plot}                             {sequence_plot}"
-FORMAT_PREAD          = "                             {connection_plot} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {time} {sequence_plot}"
-
 # sequential read brackets
 SEQUENCE_READ         = "─"
 SEQUENCE_FIRST        = "╮"
@@ -29,6 +26,19 @@ CONNECTION_CROSS      = "┼"
 CONNECTION_TURN2      = "╰"
 CONNECTION_END        = "►"
 
+#  Linux: strace assuming eg -s100 for strings, -t for elapsed time
+#  FreeBSD: TODO: need truss -d elapsed time format
+#  macOS: TODO: need dtruss format and fcntl instead of fadvise
+RE_PARAMETERS         = r"=== effective_io_concurrency ([0-9]+), range size ([0-9]+) ==="
+RE_LSEEK              = r"lseek[0-9]+\(([0-9]+),"
+RE_FADVISE            = r"fadvise[0-9]+\(([0-9]+), ?([0-9]+), ?([0-9]+),.*<([0-9.]+)>"
+RE_PREAD              = r"(preadv?)[0-9]+\(([0-9]+),.*, ?([0-9]+)\) *= *([0-9]+).*<([0-9.]+)>"
+
+# output format
+FORMAT_FADVISE        = "{syscall:<6} {blocks::>2} {first:>3}..{last:<3} {time} {connection_plot}                             {sequence_plot}"
+FORMAT_PREAD          = "                             {connection_plot} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {time} {sequence_plot}"
+
+# sanity check
 if CONNECTION_WIDTH < (CONNECTION_MARGIN * 2 + 1):
         raise Error("terminal too narrow to plot even one connection")
 
@@ -141,11 +151,14 @@ def dump(syscalls):
                         f = FORMAT_PREAD
                 print(f.format(syscall=syscall, blocks=blocks, first=first, last=last, time=time, connection_plot=connection_plot, sequence_plot=sequence_plot))
 
+# Parse stdin, expecting one or more test runs, each starting with a message
+# that matches our parameter pattern.  That is, the SQL should log it, and
+# strace/truss should be set to show long enough strings etc -s100.
 fd = None
 syscalls = []
 for line in sys.stdin:
         line = line.strip()
-        groups = re.search('=== effective_io_concurrency ([0-9]+), range size ([0-9]+) ===', line)
+        groups = re.search(RE_PARAMETERS, line)
         if groups:
                 eic = int(groups.group(1))
                 size = int(groups.group(2))
@@ -157,11 +170,11 @@ for line in sys.stdin:
                 print()
                 continue
         # guess that the first lseek we see is the right file descriptor?!
-        groups = re.search('^lseek[0-9]+\(([0-9]+),', line)
+        groups = re.search(RE_LSEEK, line)
         if groups:
                 fd = int(groups.group(1))
                 continue
-        groups = re.search('^fadvise[0-9]+\(([0-9]+), ?([0-9]+), ?([0-9]+),.*<([0-9.]+)>', line)
+        groups = re.search(RE_FADVISE, line)
         if groups:
                 this_fd = int(groups.group(1))
                 if this_fd != fd:
@@ -171,9 +184,9 @@ for line in sys.stdin:
                 time = groups.group(4)
                 syscalls.append(("fadvise", offset, size, time))
                 continue
-        groups = re.search('^(preadv?)[0-9]+\(([0-9]+),.*, ?([0-9]+)\) *= *([0-9]+).*<([0-9.]+)>', line)
+        groups = re.search(RE_PREAD, line)
         if groups:
-                syscall = groups.group(1)
+                syscall = groups.group(1) # might be pread or preadv
                 fd = int(groups.group(2))
                 if this_fd != fd:
                         continue
