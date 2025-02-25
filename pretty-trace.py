@@ -3,7 +3,8 @@ import shutil
 import sys
 
 BLCKSZ                = 8192
-COLUMNS, LINES        = shutil.get_terminal_size()
+#COLUMNS, LINES        = shutil.get_terminal_size()
+COLUMNS               = 78 # diagrams that don't wrap in email?
 
 # sequential read brackets
 SEQUENCE_READ         = "─"
@@ -54,7 +55,7 @@ def find_free_position(connections):
 
         # If there was no space left there, then search for a free
         # column from the right.
-        for i in range(len(connections) - CONNECTION_MARGIN, CONNECTION_MARGIN, -1):
+        for i in range(len(connections) - CONNECTION_MARGIN - 1, CONNECTION_MARGIN, -1):
                 if connections[i] == CONNECTION_EMPTY:
                         return i
 
