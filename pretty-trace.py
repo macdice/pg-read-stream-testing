@@ -17,7 +17,7 @@ SEQUENCE_LAST         = "╯"
 SEQUENCE_ISOLATED     = " "
 
 # connections between fadvise and read
-CONNECTION_TEXT       = 48 # non-graph text the connection must fit between
+CONNECTION_TEXT       = 46 # non-graph text the connection must fit between
 CONNECTION_WIDTH      = COLUMNS - CONNECTION_TEXT
 CONNECTION_MARGIN     = 2
 CONNECTION_EMPTY      = " "
@@ -38,8 +38,8 @@ RE_FADVISE            = r"fadvise[0-9]+\(([0-9]+), ?([0-9]+), ?([0-9]+),.*<([0-9
 RE_PREAD              = r"(preadv?)[0-9]+\(([0-9]+),.*, ?([0-9]+)\) *= *([0-9]+).*<([0-9.]+)>"
 
 # output format
-FORMAT_FADVISE        = "{syscall:<6} {depth} {connection_plot}                      {sequence_plot}  {time}"
-FORMAT_PREAD          = "          {connection_plot} {depth} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {sequence_plot}  {time}"
+FORMAT_FADVISE        = "{syscall:<6} {connection_plot}                    {sequence_plot} {depth:>2} {time}"
+FORMAT_PREAD          = "        {connection_plot} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {sequence_plot} {depth:>2} {time}"
 
 # sanity check
 if CONNECTION_WIDTH < (CONNECTION_MARGIN * 2 + 1):
