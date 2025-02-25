@@ -10,12 +10,14 @@ COLUMNS               = 78 # diagrams that don't wrap in email?
 SEQUENCE_READ         = "─"
 SEQUENCE_FIRST        = "╮"
 SEQUENCE_STRETCH      = "│"
-SEQUENCE_MORE         = "┤"
+SEQUENCE_MORE         = "│"
+#SEQUENCE_MORE         = "┤"
 SEQUENCE_LAST         = "╯"
-SEQUENCE_ISOLATED     = "╴"
+#SEQUENCE_ISOLATED     = "╴"
+SEQUENCE_ISOLATED     = " "
 
 # connections between fadvise and read
-CONNECTION_TEXT       = 44 # non-graph text the connection must fit between
+CONNECTION_TEXT       = 48 # non-graph text the connection must fit between
 CONNECTION_WIDTH      = COLUMNS - CONNECTION_TEXT
 CONNECTION_MARGIN     = 2
 CONNECTION_EMPTY      = " "
@@ -36,8 +38,8 @@ RE_FADVISE            = r"fadvise[0-9]+\(([0-9]+), ?([0-9]+), ?([0-9]+),.*<([0-9
 RE_PREAD              = r"(preadv?)[0-9]+\(([0-9]+),.*, ?([0-9]+)\) *= *([0-9]+).*<([0-9.]+)>"
 
 # output format
-FORMAT_FADVISE        = "{syscall:<6} {connection_plot}                    {sequence_plot}  {time}"
-FORMAT_PREAD          = "        {connection_plot} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {sequence_plot}  {time}"
+FORMAT_FADVISE        = "{syscall:<6} {depth} {connection_plot}                      {sequence_plot}  {time}"
+FORMAT_PREAD          = "          {connection_plot} {depth} {syscall:<6} {blocks:>2} {first:>3}..{last:<3} {sequence_plot}  {time}"
 
 # sanity check
 if CONNECTION_WIDTH < (CONNECTION_MARGIN * 2 + 1):
@@ -60,6 +62,13 @@ def find_free_position(connections):
                         return i
 
         raise Error("terminal too narrow to plot required number of connections")
+
+def get_depth(connections):
+    count = 0
+    for x in connections:
+        if x != CONNECTION_EMPTY:
+            count += 1
+    return count
 
 def connections_to_string(connections):
         return "".join(connections)
@@ -129,14 +138,14 @@ def dump(syscalls):
                                         break
                         if next_read_seq:
                                 if last_read_seq:
-                                        sequence_plot = SEQUENCE_READ + SEQUENCE_MORE
+                                        sequence_plot = " " + SEQUENCE_MORE
                                 else:
                                         sequence_plot = SEQUENCE_READ + SEQUENCE_FIRST
                         else:
                                 if last_read_seq:
                                         sequence_plot = SEQUENCE_READ + SEQUENCE_LAST
                                 else:
-                                        sequence_plot = SEQUENCE_READ + SEQUENCE_ISOLATED
+                                        sequence_plot = " " + SEQUENCE_ISOLATED
                         last_read_seq = next_read_seq
                 else:
                         # For non-pread calls we just have to stretch
@@ -146,11 +155,13 @@ def dump(syscalls):
                         else:
                                 sequence_plot = "  "
 
+                depth = get_depth(connections)
+
                 if syscall == "fadvise":
                         f = FORMAT_FADVISE
                 else:
                         f = FORMAT_PREAD
-                print(f.format(syscall=syscall, blocks=blocks, first=first, last=last, time=time, connection_plot=connection_plot, sequence_plot=sequence_plot))
+                print(f.format(syscall=syscall, depth=depth, blocks=blocks, first=first, last=last, time=time, connection_plot=connection_plot, sequence_plot=sequence_plot))
 
 # Parse stdin, expecting one or more test runs, each starting with a message
 # that matches our parameter pattern.  That is, the SQL should log it, and
