@@ -33,7 +33,7 @@ CONNECTION_END        = "►"
 #  FreeBSD: TODO: need truss -d elapsed time format
 #  macOS: TODO: need dtruss format and fcntl instead of fadvise
 RE_PARAMETERS         = r"=== effective_io_concurrency ([0-9]+), range size ([0-9]+) ==="
-RE_LSEEK              = r"lseek[0-9]+\(([0-9]+),"
+RE_LSEEK              = r"lseek\(([0-9]+),"
 RE_FADVISE            = r"fadvise[0-9]+\(([0-9]+), ?([0-9]+), ?([0-9]+),.*<([0-9.]+)>"
 RE_PREAD              = r"(preadv?)[0-9]+\(([0-9]+),.*, ?([0-9]+)\) *= *([0-9]+).*<([0-9.]+)>"
 
@@ -168,6 +168,7 @@ def dump(syscalls):
 # strace/truss should be set to show long enough strings etc -s100.
 fd = None
 syscalls = []
+eic = None
 for line in sys.stdin:
         line = line.strip()
         groups = re.search(RE_PARAMETERS, line)
@@ -181,6 +182,8 @@ for line in sys.stdin:
                 print("effective_io_concurrency = %s, range size = %s" % (eic, size))
                 print()
                 continue
+        if not eic:
+            continue
         # guess that the first lseek we see is the right file descriptor?!
         groups = re.search(RE_LSEEK, line)
         if groups:
@@ -199,7 +202,7 @@ for line in sys.stdin:
         groups = re.search(RE_PREAD, line)
         if groups:
                 syscall = groups.group(1) # might be pread or preadv
-                fd = int(groups.group(2))
+                this_fd = int(groups.group(2))
                 if this_fd != fd:
                         continue
                 offset = int(groups.group(3))
@@ -208,4 +211,6 @@ for line in sys.stdin:
                 syscalls.append((syscall, offset, size, time))
                 continue
 if len(syscalls) > 0:
-        dump(syscalls)
+    dump(syscalls)
+else:
+    print("?")
